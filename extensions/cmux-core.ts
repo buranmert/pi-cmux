@@ -88,9 +88,10 @@ export function buildPiCommand(cwd: string, options?: { sessionFile?: string; pr
 }
 
 export function buildShellCommand(cwd: string, command: string): string {
-	// Same login+interactive zsh wrap as buildPiCommand: /bin/sh -lc skips zsh rc files,
-	// so user PATH tools like pi/node (fnm + ~/.local/bin) are missing in the new surface.
-	return ["cd", shellEscape(cwd), "&&", "exec", "zsh", "-l", "-i", "-c", shellEscape(command)].join(" ");
+	// Run in a login+interactive zsh (sources ~/.zprofile/.zshrc so pi/node are on PATH),
+	// then drop into an interactive zsh after the command so the pane stays open.
+	return ["cd", shellEscape(cwd), "&&", "exec", "zsh", "-l", "-i", "-c",
+		shellEscape(`${command}; exec zsh -l -i`)].join(" ");
 }
 
 function normalizeTabTitle(value: string | undefined, fallback: string): string {
