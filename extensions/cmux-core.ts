@@ -73,19 +73,25 @@ export function shellEscape(value: string): string {
 }
 
 export function buildPiCommand(cwd: string, options?: { sessionFile?: string; prompt?: string }): string {
-	const commandParts = ["cd", shellEscape(cwd), "&&", "exec", "pi"];
+	// Run pi via a login+interactive zsh so the new cmux surface sources ~/.zprofile/.zshrc.
+	// Ghostty executes launch commands through /bin/sh -c, which skips zsh rc files and
+	// leaves pi (~/.local/bin) and node (fnm multishell) off PATH -> "command not found: pi".
+	const innerParts = ["exec", "pi"];
 	if (options?.sessionFile) {
-		commandParts.push("--session", shellEscape(options.sessionFile));
+		innerParts.push("--session", shellEscape(options.sessionFile));
 	}
 	const prompt = options?.prompt?.trim();
 	if (prompt) {
-		commandParts.push(shellEscape(prompt));
+		innerParts.push(shellEscape(prompt));
 	}
-	return commandParts.join(" ");
+	return ["cd", shellEscape(cwd), "&&", "exec", "zsh", "-l", "-i", "-c", shellEscape(innerParts.join(" "))].join(" ");
 }
 
 export function buildShellCommand(cwd: string, command: string): string {
-	return ["cd", shellEscape(cwd), "&&", "exec", "sh", "-lc", shellEscape(command)].join(" ");
+	// Run in a login+interactive zsh (sources ~/.zprofile/.zshrc so pi/node are on PATH),
+	// then drop into an interactive zsh after the command so the pane stays open.
+	return ["cd", shellEscape(cwd), "&&", "exec", "zsh", "-l", "-i", "-c",
+		shellEscape(`${command}; exec zsh -l -i`)].join(" ");
 }
 
 function normalizeTabTitle(value: string | undefined, fallback: string): string {
